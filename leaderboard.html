@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaderboard — ApexJudge Academy</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav class="site-nav" id="site-nav"></nav>
+
+<header class="page-header">
+  <div class="wrap">
+    <span class="breadcrumb"><a href="index.html">home</a> / leaderboard</span>
+    <h1>Academy Leaderboard</h1>
+    <p style="max-width:60ch;">Ranked by current score. Filter by group or sort by problems solved to see who's been grinding.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="filter-bar" id="group-filter"></div>
+    <div class="filter-bar">
+      <button class="chip active" data-sort="score">Sort: Score</button>
+      <button class="chip" data-sort="solved">Sort: Solved</button>
+      <button class="chip" data-sort="name">Sort: Name</button>
+    </div>
+    <div class="table-wrap">
+      <table class="board">
+        <thead>
+          <tr><th>Rank</th><th>Student</th><th>Group</th><th>Tier</th><th style="text-align:right;">Solved</th><th style="text-align:right;">Score</th></tr>
+        </thead>
+        <tbody id="board-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/config.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(async function() {
+  renderNav('leaderboard.html');
+  renderFooter();
+  const { data, cloudError } = await loadAppData();
+  if (cloudError) console.warn('Cloud sync issue:', cloudError);
+
+  let activeGroup = 'all';
+  let activeSort = 'score';
+
+  function renderFilters() {
+    const chips = [{id:'all', name:'All groups'}, ...data.groups];
+    document.getElementById('group-filter').innerHTML = chips.map(g =>
+      `<button class="chip ${activeGroup===g.id ? 'active':''}" data-group="${g.id}">${g.name}</button>`
+    ).join('');
+    document.querySelectorAll('[data-group]').forEach(btn => {
+      btn.addEventListener('click', () => { activeGroup = btn.dataset.group; renderFilters(); renderBoard(); });
+    });
+  }
+
+  function renderBoard() {
+    let list = data.students.filter(s => activeGroup === 'all' || s.groupId === activeGroup);
+    if (activeSort === 'score') list.sort((a,b) => b.score - a.score);
+    else if (activeSort === 'solved') list.sort((a,b) => (b.solved||0) - (a.solved||0));
+    else list.sort((a,b) => a.name.localeCompare(b.name));
+
+    document.getElementById('board-body').innerHTML = list.map((s, i) => {
+      const tier = tierFor(s.score);
+      const rankClass = i===0 ? 'top1' : i===1 ? 'top2' : i===2 ? 'top3' : '';
+      return `
+        <tr>
+          <td class="rank-cell ${rankClass}">${String(i+1).padStart(2,'0')}</td>
+          <td class="name-cell">${avatarHtml(s.name, s.photo, s.score, 'avatar')} ${s.name}</td>
+          <td class="mono" style="color:var(--dim); font-size:13px;">${groupName(data, s.groupId)}</td>
+          <td><span class="tier-pill" style="--tier-color:${tier.color}">${tier.name}</span></td>
+          <td style="text-align:right;" class="mono">${s.solved ?? 0}</td>
+          <td class="score-cell" style="color:${tier.color}">${s.score}</td>
+        </tr>`;
+    }).join('') || `<tr><td colspan="6"><div class="empty">No students to show.</div></td></tr>`;
+  }
+
+  document.querySelectorAll('[data-sort]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeSort = btn.dataset.sort;
+      document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderBoard();
+    });
+  });
+
+  renderFilters();
+  renderBoard();
+})();
+</script>
+</body>
+</html>
