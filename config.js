@@ -17,6 +17,6 @@
    ============================================================ */
 
 const CLOUD_CONFIG = {
-  BIN_ID: '',   // e.g. '65f1a2b3c4d5e6f7a8b9c0d1'
-  API_KEY: '',  // e.g. '$2b$10$abcdefghijklmnopqrstuvwx...'
+  BIN_ID: '6a5e95f9f5f4af5e29a9c3be',   // e.g. '65f1a2b3c4d5e6f7a8b9c0d1'
+  API_KEY: '$2a$10$iiu/HTKlrUDmL9NRfWIHreVCUNj9fS9779q8oOyAq87INdzuyP3U2', 
 };
