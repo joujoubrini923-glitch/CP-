@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — ApexJudge Academy</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav class="site-nav" id="site-nav"></nav>
+
+<div id="lock-view" class="wrap lock-screen" style="display:none;">
+  <span class="eyebrow">// coach access only</span>
+  <h1 style="font-size:28px;">Enter admin password</h1>
+  <p>Default password is <span class="mono">coach123</span> — change it below once you're in.</p>
+  <input type="password" id="pass-input" placeholder="Password" autocomplete="current-password">
+  <button class="btn btn-primary" id="unlock-btn">Unlock</button>
+  <p id="pass-error" style="color:var(--crimson); display:none;">Wrong password. Try again.</p>
+</div>
+
+<div id="admin-view" style="display:none;">
+  <header class="page-header">
+    <div class="wrap">
+      <span class="breadcrumb"><a href="index.html">home</a> / admin</span>
+      <h1>Coach Dashboard</h1>
+      <p style="max-width:60ch;">Everything here saves to this browser instantly. Use Backup to export a JSON copy — do this regularly.</p>
+    </div>
+  </header>
+
+  <section style="padding-top:32px;">
+    <div class="wrap">
+      <div class="filter-bar" id="tabs">
+        <button class="chip active" data-tab="coach">Coach</button>
+        <button class="chip" data-tab="groups">Groups</button>
+        <button class="chip" data-tab="students">Students</button>
+        <button class="chip" data-tab="contests">Contests</button>
+        <button class="chip" data-tab="problems">Problems</button>
+        <button class="chip" data-tab="backup">Backup &amp; security</button>
+      </div>
+
+      <div id="panel-coach" class="tab-panel"></div>
+      <div id="panel-groups" class="tab-panel" style="display:none;"></div>
+      <div id="panel-students" class="tab-panel" style="display:none;"></div>
+      <div id="panel-contests" class="tab-panel" style="display:none;"></div>
+      <div id="panel-problems" class="tab-panel" style="display:none;"></div>
+      <div id="panel-backup" class="tab-panel" style="display:none;"></div>
+    </div>
+  </section>
+</div>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/config.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+renderNav('admin.html');
+renderFooter();
+let data = null;
+let lastSyncNote = null;
+
+/* ---------------- gate ---------------- */
+function showLocked() {
+  document.getElementById('lock-view').style.display = 'flex';
+  document.getElementById('admin-view').style.display = 'none';
+}
+async function showUnlocked() {
+  document.getElementById('lock-view').style.display = 'none';
+  document.getElementById('admin-view').style.display = 'block';
+  const result = await loadAppData();
+  data = result.data;
+  lastSyncNote = result;
+  if (result.cloudError) toast('Could not reach cloud storage — showing last known data.');
+  renderAll();
+}
+if (isAdminUnlocked()) showUnlocked(); else showLocked();
+
+document.getElementById('unlock-btn').addEventListener('click', tryUnlock);
+document.getElementById('pass-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+function tryUnlock() {
+  const val = document.getElementById('pass-input').value;
+  if (unlockAdmin(val)) { showUnlocked(); }
+  else { document.getElementById('pass-error').style.display = 'block'; }
+}
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('#tabs [data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tabs [data-tab]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('panel-' + btn.dataset.tab).style.display = 'block';
+  });
+});
+
+async function persist() {
+  const result = await saveAppData(data);
+  lastSyncNote = result;
+  if (result.synced === false && result.reason !== 'not-configured') {
+    toast('Saved locally, but cloud sync failed — check your connection.');
+  }
+  return result;
+}
+function renderAll() {
+  renderCoachPanel();
+  renderGroupsPanel();
+  renderStudentsPanel();
+  renderContestsPanel();
+  renderProblemsPanel();
+  renderBackupPanel();
+}
+
+/* ---------------- helper: photo input to base64 ---------------- */
+function wirePhotoInput(inputEl, onLoaded) {
+  inputEl.addEventListener('change', () => {
+    const file = inputEl.files[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast('Please use an image under ~1.5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onLoaded(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ================= COACH ================= */
+function renderCoachPanel() {
+  const c = data.coach;
+  const el = document.getElementById('panel-coach');
+  el.innerHTML = `
+    <div class="admin-panel">
+      <h3>Coach profile</h3>
+      <div style="display:flex; gap:20px; align-items:flex-start; margin-bottom:18px; flex-wrap:wrap;">
+        <div id="coach-photo-preview"></div>
+        <div>
+          <label>Photo</label>
+          <input type="file" id="coach-photo-input" accept="image/*">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Name</label><input id="c-name" value="${c.name}"></div>
+        <div class="field"><label>Title</label><input id="c-title" value="${c.title}"></div>
+        <div class="field"><label>Email</label><input id="c-email" value="${c.email||''}"></div>
+        <div class="field"><label>Years coaching</label><input id="c-years" type="number" value="${c.stats?.years ?? 0}"></div>
+      </div>
+      <div class="field"><label>Bio</label><textarea id="c-bio">${c.bio}</textarea></div>
+      <button class="btn btn-primary" id="save-coach">Save changes</button>
+    </div>
+  `;
+  renderCoachPhotoPreview();
+  wirePhotoInput(document.getElementById('coach-photo-input'), (dataUrl) => {
+    data.coach.photo = dataUrl; persist(); renderCoachPhotoPreview(); toast('Photo updated');
+  });
+  document.getElementById('save-coach').addEventListener('click', () => {
+    data.coach.name = document.getElementById('c-name').value.trim() || 'Coach';
+    data.coach.title = document.getElementById('c-title').value.trim();
+    data.coach.email = document.getElementById('c-email').value.trim();
+    data.coach.bio = document.getElementById('c-bio').value.trim();
+    data.coach.stats = { ...data.coach.stats, years: Number(document.getElementById('c-years').value) || 0 };
+    persist(); toast('Coach profile saved');
+  });
+}
+function renderCoachPhotoPreview() {
+  const c = data.coach;
+  document.getElementById('coach-photo-preview').innerHTML = c.photo
+    ? `<img src="${c.photo}" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid var(--line);">`
+    : `<div style="width:72px;height:72px;border-radius:12px;background:var(--elevated);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;">${initials(c.name)}</div>`;
+}
+
+/* ================= GROUPS ================= */
+function renderGroupsPanel() {
+  const el = document.getElementById('panel-groups');
+  el.innerHTML = `
+    <div class="admin-panel">
+      <h3>Add a group</h3>
+      <div class="form-grid">
+        <div class="field"><label>Group name</label><input id="g-name" placeholder="e.g. Advanced"></div>
+        <div class="field"><label>Description</label><input id="g-desc" placeholder="One line about this group"></div>
+      </div>
+      <button class="btn btn-primary" id="add-group">Add group</button>
+    </div>
+    <div class="admin-panel">
+      <h3>Existing groups</h3>
+      <div id="groups-list-admin"></div>
+    </div>
+  `;
+  document.getElementById('add-group').addEventListener('click', () => {
+    const name = document.getElementById('g-name').value.trim();
+    const desc = document.getElementById('g-desc').value.trim();
+    if (!name) { toast('Group needs a name'); return; }
+    data.groups.push({ id: uid('g'), name, description: desc });
+    persist(); toast('Group added'); renderGroupsPanel(); renderStudentsPanel();
+  });
+  const list = document.getElementById('groups-list-admin');
+  list.innerHTML = data.groups.map(g => {
+    const count = data.students.filter(s => s.groupId === g.id).length;
+    return `
+      <div class="admin-list-row">
+        <div><b>${g.name}</b> <span class="mono" style="color:var(--dim); font-size:12px;">(${count} students)</span><br><span style="color:var(--dim); font-size:13px;">${g.description}</span></div>
+        <div class="row-actions">
+          <a href="group.html?id=${g.id}" target="_blank" class="btn btn-ghost btn-sm">View page ↗</a>
+          <button class="btn btn-danger btn-sm" data-del-group="${g.id}">Delete</button>
+        </div>
+      </div>`;
+  }).join('') || '<div class="empty">No groups yet.</div>';
+  list.querySelectorAll('[data-del-group]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.delGroup;
+      const inUse = data.students.some(s => s.groupId === id);
+      if (inUse && !confirm('Students are assigned to this group. Delete anyway? They will show as unassigned.')) return;
+      data.groups = data.groups.filter(g => g.id !== id);
+      persist(); toast('Group deleted'); renderGroupsPanel(); renderStudentsPanel();
+    });
+  });
+}
+
+/* ================= STUDENTS ================= */
+function renderStudentsPanel() {
+  const el = document.getElementById('panel-students');
+  const groupOptions = data.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  el.innerHTML = `
+    <div class="admin-panel">
+      <h3>Add a student</h3>
+      <div class="form-grid">
+        <div class="field"><label>Name</label><input id="s-name" placeholder="Full name"></div>
+        <div class="field"><label>Handle</label><input id="s-handle" placeholder="judge handle"></div>
+        <div class="field"><label>Group</label><select id="s-group">${groupOptions}</select></div>
+        <div class="field"><label>Starting score</label><input id="s-score" type="number" value="0"></div>
+        <div class="field"><label>Problems solved</label><input id="s-solved" type="number" value="0"></div>
+        <div class="field"><label>Photo</label><input id="s-photo" type="file" accept="image/*"></div>
+      </div>
+      <button class="btn btn-primary" id="add-student">Add student</button>
+    </div>
+    <div class="admin-panel">
+      <h3>Roster — update scores here</h3>
+      <div id="students-list-admin"></div>
+    </div>
+  `;
+  let pendingPhoto = '';
+  wirePhotoInput(document.getElementById('s-photo'), (dataUrl) => { pendingPhoto = dataUrl; });
+
+  document.getElementById('add-student').addEventListener('click', () => {
+    const name = document.getElementById('s-name').value.trim();
+    if (!name) { toast('Student needs a name'); return; }
+    data.students.push({
+      id: uid('s'),
+      name,
+      handle: document.getElementById('s-handle').value.trim(),
+      groupId: document.getElementById('s-group').value || '',
+      score: Number(document.getElementById('s-score').value) || 0,
+      solved: Number(document.getElementById('s-solved').value) || 0,
+      photo: pendingPhoto,
+    });
+    persist(); toast('Student added'); renderStudentsPanel();
+  });
+
+  const list = document.getElementById('students-list-admin');
+  if (!data.students.length) {
+    list.innerHTML = '<div class="empty">No students yet.</div>';
+    return;
+  }
+  list.innerHTML = data.students.map(s => `
+    <div class="admin-panel" style="background:var(--elevated); margin-bottom:14px;">
+      <div style="display:flex; gap:14px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+        <div id="preview-${s.id}"></div>
+        <div style="flex:1; min-width:160px;">
+          <div style="font-weight:600;">${s.name}</div>
+          <div class="mono" style="font-size:12px; color:var(--dim);">${groupName(data, s.groupId)}</div>
+        </div>
+        <input type="file" accept="image/*" id="photo-${s.id}" style="max-width:200px;">
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Name</label><input id="name-${s.id}" value="${s.name}"></div>
+        <div class="field"><label>Handle</label><input id="handle-${s.id}" value="${s.handle||''}"></div>
+        <div class="field"><label>Group</label>
+          <select id="group-${s.id}">${data.groups.map(g => `<option value="${g.id}" ${g.id===s.groupId?'selected':''}>${g.name}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Score</label><input id="score-${s.id}" type="number" value="${s.score}"></div>
+        <div class="field"><label>Problems solved</label><input id="solved-${s.id}" type="number" value="${s.solved||0}"></div>
+      </div>
+      <div class="row-actions" style="flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" data-save="${s.id}">Save</button>
+        <button class="btn btn-ghost btn-sm" data-add-solved="${s.id}">+1 problem solved</button>
+        <button class="btn btn-danger btn-sm" data-del="${s.id}">Delete student</button>
+      </div>
+    </div>
+  `).join('');
+
+  data.students.forEach(s => {
+    document.getElementById('preview-' + s.id).innerHTML = avatarHtml(s.name, s.photo, s.score, 'avatar');
+    wirePhotoInput(document.getElementById('photo-' + s.id), (dataUrl) => {
+      s.photo = dataUrl; persist(); toast('Photo updated'); renderStudentsPanel();
+    });
+  });
+  list.querySelectorAll('[data-save]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.save;
+      const s = studentById(data, id);
+      s.name = document.getElementById('name-'+id).value.trim() || s.name;
+      s.handle = document.getElementById('handle-'+id).value.trim();
+      s.groupId = document.getElementById('group-'+id).value;
+      s.score = Number(document.getElementById('score-'+id).value) || 0;
+      s.solved = Number(document.getElementById('solved-'+id).value) || 0;
+      persist(); toast('Saved ' + s.name); renderStudentsPanel();
+    });
+  });
+  list.querySelectorAll('[data-add-solved]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = studentById(data, btn.dataset.addSolved);
+      s.solved = (s.solved || 0) + 1;
+      persist(); toast(s.name + ': +1 solved'); renderStudentsPanel();
+    });
+  });
+  list.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Delete this student? This cannot be undone.')) return;
+      data.students = data.students.filter(s => s.id !== btn.dataset.del);
+      persist(); toast('Student deleted'); renderStudentsPanel();
+    });
+  });
+}
+
+/* ================= CONTESTS ================= */
+function renderContestsPanel() {
+  const el = document.getElementById('panel-contests');
+  el.innerHTML = `
+    <div class="admin-panel">
+      <h3>Log a new contest</h3>
+      <div class="form-grid">
+        <div class="field"><label>Contest name</label><input id="ct-name" placeholder="e.g. Summer Cup 2026"></div>
+        <div class="field"><label>Date</label><input id="ct-date" type="date"></div>
+      </div>
+      <button class="btn btn-primary" id="add-contest">Create contest</button>
+    </div>
+    <div id="contests-list-admin"></div>
+  `;
+  document.getElementById('add-contest').addEventListener('click', () => {
+    const name = document.getElementById('ct-name').value.trim();
+    const date = document.getElementById('ct-date').value || new Date().toISOString().slice(0,10);
+    if (!name) { toast('Contest needs a name'); return; }
+    data.contests.push({ id: uid('c'), name, date, leaderboard: [] });
+    persist(); toast('Contest created'); renderContestsPanel();
+  });
+
+  const list = document.getElementById('contests-list-admin');
+  list.innerHTML = data.contests.map(c => {
+    const studentOptions = data.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const rows = [...c.leaderboard].sort((a,b) => a.rank - b.rank).map(entry => {
+      const st = studentById(data, entry.studentId);
+      return `
+        <div class="admin-list-row">
+          <div>#${entry.rank} — ${st ? st.name : 'Unknown student'} <span class="mono" style="color:var(--dim); font-size:12px;">(${entry.score} pts)</span></div>
+          <button class="btn btn-danger btn-sm" data-del-entry="${c.id}|${entry.studentId}">Remove</button>
+        </div>`;
+    }).join('') || '<div class="empty">No results logged yet.</div>';
+
+    return `
+      <div class="admin-panel">
+        <h3>${c.name} <span class="mono" style="font-size:12px; color:var(--dim);">${c.date}</span></h3>
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="field"><label>Student</label><select id="entry-student-${c.id}">${studentOptions}</select></div>
+          <div class="field"><label>Rank</label><input id="entry-rank-${c.id}" type="number" min="1" value="1"></div>
+          <div class="field"><label>Contest score</label><input id="entry-score-${c.id}" type="number" value="0"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-add-entry="${c.id}" style="margin-bottom:16px;">Add result</button>
+        <div>${rows}</div>
+        <div class="row-actions" style="margin-top:16px;">
+          <a href="hall-of-fame.html" target="_blank" class="btn btn-ghost btn-sm">View hall of fame ↗</a>
+          <button class="btn btn-danger btn-sm" data-del-contest="${c.id}">Delete contest</button>
+        </div>
+      </div>`;
+  }).join('') || '<div class="empty">No contests yet.</div>';
+
+  list.querySelectorAll('[data-add-entry]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cid = btn.dataset.addEntry;
+      const contest = data.contests.find(c => c.id === cid);
+      const studentId = document.getElementById('entry-student-'+cid).value;
+      const rank = Number(document.getElementById('entry-rank-'+cid).value) || 1;
+      const score = Number(document.getElementById('entry-score-'+cid).value) || 0;
+      if (!studentId) { toast('Add a student first'); return; }
+      contest.leaderboard = contest.leaderboard.filter(e => e.studentId !== studentId);
+      contest.leaderboard.push({ studentId, rank, score });
+      persist(); toast('Result added'); renderContestsPanel();
+    });
+  });
+  list.querySelectorAll('[data-del-entry]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [cid, sid] = btn.dataset.delEntry.split('|');
+      const contest = data.contests.find(c => c.id === cid);
+      contest.leaderboard = contest.leaderboard.filter(e => e.studentId !== sid);
+      persist(); toast('Result removed'); renderContestsPanel();
+    });
+  });
+  list.querySelectorAll('[data-del-contest]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Delete this contest and all its results?')) return;
+      data.contests = data.contests.filter(c => c.id !== btn.dataset.delContest);
+      persist(); toast('Contest deleted'); renderContestsPanel();
+    });
+  });
+}
+
+/* ================= PROBLEMS ================= */
+function renderProblemsPanel() {
+  const el = document.getElementById('panel-problems');
+  const groupOptions = data.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  el.innerHTML = `
+    <div class="admin-panel">
+      <h3>Add a problem</h3>
+      <div class="form-grid">
+        <div class="field"><label>Title</label><input id="p-title" placeholder="Problem name"></div>
+        <div class="field"><label>Link</label><input id="p-link" placeholder="https://..."></div>
+        <div class="field"><label>Category / topic</label><input id="p-category" placeholder="e.g. Graphs"></div>
+        <div class="field"><label>Difficulty</label>
+          <select id="p-difficulty"><option>Easy</option><option>Medium</option><option>Hard</option></select>
+        </div>
+        <div class="field"><label>Assign to group</label><select id="p-group">${groupOptions}</select></div>
+      </div>
+      <button class="btn btn-primary" id="add-problem">Add problem</button>
+    </div>
+    <div class="admin-panel">
+      <h3>All problems</h3>
+      <div id="problems-list-admin"></div>
+    </div>
+  `;
+  document.getElementById('add-problem').addEventListener('click', () => {
+    const title = document.getElementById('p-title').value.trim();
+    const link = document.getElementById('p-link').value.trim();
+    if (!title || !link) { toast('Title and link are required'); return; }
+    data.problems.push({
+      id: uid('p'), title, link,
+      category: document.getElementById('p-category').value.trim() || 'General',
+      difficulty: document.getElementById('p-difficulty').value,
+      groupId: document.getElementById('p-group').value || '',
+    });
+    persist(); toast('Problem added'); renderProblemsPanel();
+  });
+  const list = document.getElementById('problems-list-admin');
+  list.innerHTML = data.problems.map(p => `
+    <div class="admin-list-row">
+      <div>
+        <b>${p.title}</b> <span class="diff diff-${p.difficulty}">${p.difficulty}</span><br>
+        <span style="color:var(--dim); font-size:13px;">${p.category} — ${groupName(data,p.groupId)}</span>
+      </div>
+      <div class="row-actions">
+        <a href="${p.link}" target="_blank" class="btn btn-ghost btn-sm">Open ↗</a>
+        <button class="btn btn-danger btn-sm" data-del-problem="${p.id}">Delete</button>
+      </div>
+    </div>
+  `).join('') || '<div class="empty">No problems yet.</div>';
+  list.querySelectorAll('[data-del-problem]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      data.problems = data.problems.filter(p => p.id !== btn.dataset.delProblem);
+      persist(); toast('Problem deleted'); renderProblemsPanel();
+    });
+  });
+}
+
+/* ================= BACKUP & SECURITY ================= */
+function renderBackupPanel() {
+  const el = document.getElementById('panel-backup');
+  const connected = cloudConfigured();
+  const statusHtml = connected
+    ? `<div class="admin-list-row" style="border:1px solid #2c4a33; background:rgba(61,163,93,.08); border-radius:8px; padding:14px 16px;">
+         <div><b style="color:#3DA35D;">● Connected</b><br><span style="color:var(--dim); font-size:13px;">Changes you save here update automatically for every visitor.</span></div>
+       </div>`
+    : `<div class="admin-list-row" style="border:1px solid #4a3a20; background:rgba(232,137,44,.08); border-radius:8px; padding:14px 16px;">
+         <div><b style="color:var(--gold);">● Local-only mode</b><br><span style="color:var(--dim); font-size:13px;">Changes only save to this browser. See setup steps below to turn on live sync for everyone.</span></div>
+       </div>`;
+
+  el.innerHTML = `
+    <div class="admin-panel">
+      <h3>Cloud sync status</h3>
+      ${statusHtml}
+      ${!connected ? `
+      <div style="margin-top:18px; font-size:14px; color:var(--dim); line-height:1.7;">
+        <b style="color:var(--text);">One-time setup to turn on live sync:</b><br>
+        1. Create a free account at <a href="https://jsonbin.io" target="_blank" style="color:var(--gold);">jsonbin.io</a><br>
+        2. Click "Create Bin", paste in the contents of <span class="mono">assets/starter-data.json</span>, save it<br>
+        3. Copy that bin's ID<br>
+        4. Go to Account &rarr; API Keys, copy your <span class="mono">X-MASTER-KEY</span><br>
+        5. Open <span class="mono">assets/config.js</span>, paste both values in, save, and re-upload that one file<br>
+        That's the only manual step — every Admin change after that syncs automatically.
+      </div>` : `
+      <button class="btn btn-ghost btn-sm" id="test-cloud-btn" style="margin-top:14px;">Test connection</button>
+      `}
+    </div>
+    <div class="admin-panel">
+      <h3>Backup</h3>
+      <p>Even with cloud sync on, it's worth exporting a backup after big updates — it's your copy if anything ever goes wrong with the cloud storage.</p>
+      <div class="row-actions">
+        <button class="btn btn-primary btn-sm" id="export-btn">Export backup (.json)</button>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;">Import backup<input type="file" id="import-input" accept="application/json" style="display:none;"></label>
+      </div>
+    </div>
+    <div class="admin-panel">
+      <h3>Change admin password</h3>
+      <div class="form-grid">
+        <div class="field"><label>New password</label><input type="password" id="new-pass"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="save-pass">Update password</button>
+    </div>
+    <div class="admin-panel">
+      <h3>Session</h3>
+      <p>Locking removes admin access on this device until the password is entered again.</p>
+      <button class="btn btn-danger btn-sm" id="lock-btn">Lock admin</button>
+    </div>
+  `;
+  const testBtn = document.getElementById('test-cloud-btn');
+  if (testBtn) {
+    testBtn.addEventListener('click', async () => {
+      testBtn.textContent = 'Testing…';
+      try {
+        await fetchCloudData();
+        toast('Connected — cloud storage is reachable.');
+      } catch (e) {
+        toast('Could not reach cloud storage. Double-check config.js.');
+      }
+      testBtn.textContent = 'Test connection';
+    });
+  }
+  document.getElementById('export-btn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'apexjudge-backup.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById('import-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!parsed.students || !parsed.groups) throw new Error('bad shape');
+        data = parsed; persist(); toast('Backup imported'); renderAll();
+      } catch (err) {
+        toast('That file could not be read as a backup.');
+      }
+    };
+    reader.readAsText(file);
+  });
+  document.getElementById('save-pass').addEventListener('click', () => {
+    const val = document.getElementById('new-pass').value;
+    if (!val || val.length < 4) { toast('Use at least 4 characters'); return; }
+    localStorage.setItem(ADMIN_PASS_KEY, val);
+    toast('Password updated');
+    document.getElementById('new-pass').value = '';
+  });
+  document.getElementById('lock-btn').addEventListener('click', () => {
+    lockAdmin(); showLocked();
+  });
+}
+</script>
+</body>
+</html>
