@@ -1,0 +1,175 @@
+{
+  "coach": {
+    "name": "Coach Name",
+    "title": "Head Coach, ApexJudge Academy",
+    "bio": "I train students for ICPC, IOI and rated online judges — from first for-loop to red-handle. Replace this bio from the Admin page with your own background, achievements and coaching philosophy.",
+    "photo": "",
+    "email": "coach@example.com",
+    "stats": {
+      "years": 6,
+      "alumni": 54,
+      "medals": 12
+    }
+  },
+  "groups": [
+    {
+      "id": "g1",
+      "name": "Foundations",
+      "description": "New members — syntax, loops, arrays, basic math."
+    },
+    {
+      "id": "g2",
+      "name": "Intermediate",
+      "description": "Data structures, greedy, graphs, DP fundamentals."
+    },
+    {
+      "id": "g3",
+      "name": "Advanced",
+      "description": "ICPC / IOI track — advanced DP, flows, geometry, number theory."
+    }
+  ],
+  "students": [
+    {
+      "id": "s1",
+      "name": "Aiden Cole",
+      "photo": "",
+      "groupId": "g3",
+      "score": 2450,
+      "solved": 812,
+      "handle": "aidenc"
+    },
+    {
+      "id": "s2",
+      "name": "Maya Torres",
+      "photo": "",
+      "groupId": "g3",
+      "score": 2180,
+      "solved": 640,
+      "handle": "maya_t"
+    },
+    {
+      "id": "s3",
+      "name": "Liam Chen",
+      "photo": "",
+      "groupId": "g2",
+      "score": 1540,
+      "solved": 322,
+      "handle": "liamc"
+    },
+    {
+      "id": "s4",
+      "name": "Sofia Reyes",
+      "photo": "",
+      "groupId": "g2",
+      "score": 1310,
+      "solved": 260,
+      "handle": "sofiar"
+    },
+    {
+      "id": "s5",
+      "name": "Noah Park",
+      "photo": "",
+      "groupId": "g1",
+      "score": 640,
+      "solved": 58,
+      "handle": "noahp"
+    },
+    {
+      "id": "s6",
+      "name": "Zara Ahmed",
+      "photo": "",
+      "groupId": "g1",
+      "score": 720,
+      "solved": 71,
+      "handle": "zaraa"
+    }
+  ],
+  "contests": [
+    {
+      "id": "c1",
+      "name": "Winter Qualifier 2026",
+      "date": "2026-01-18",
+      "leaderboard": [
+        {
+          "studentId": "s1",
+          "rank": 1,
+          "score": 2450
+        },
+        {
+          "studentId": "s2",
+          "rank": 2,
+          "score": 2210
+        },
+        {
+          "studentId": "s3",
+          "rank": 3,
+          "score": 1580
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "name": "Spring Invitational 2026",
+      "date": "2026-04-05",
+      "leaderboard": [
+        {
+          "studentId": "s2",
+          "rank": 1,
+          "score": 2260
+        },
+        {
+          "studentId": "s1",
+          "rank": 2,
+          "score": 2200
+        },
+        {
+          "studentId": "s4",
+          "rank": 3,
+          "score": 1330
+        }
+      ]
+    }
+  ],
+  "problems": [
+    {
+      "id": "p1",
+      "title": "Two Pointers Warm-up",
+      "link": "https://codeforces.com/problemset",
+      "difficulty": "Easy",
+      "category": "Arrays",
+      "groupId": "g1"
+    },
+    {
+      "id": "p2",
+      "title": "Binary Search on Answer",
+      "link": "https://codeforces.com/problemset",
+      "difficulty": "Medium",
+      "category": "Binary Search",
+      "groupId": "g2"
+    },
+    {
+      "id": "p3",
+      "title": "Shortest Path Variants",
+      "link": "https://codeforces.com/problemset",
+      "difficulty": "Medium",
+      "category": "Graphs",
+      "groupId": "g2"
+    },
+    {
+      "id": "p4",
+      "title": "Digit DP Practice",
+      "link": "https://codeforces.com/problemset",
+      "difficulty": "Hard",
+      "category": "Dynamic Programming",
+      "groupId": "g3"
+    },
+    {
+      "id": "p5",
+      "title": "Max-Flow Min-Cut Set",
+      "link": "https://codeforces.com/problemset",
+      "difficulty": "Hard",
+      "category": "Flows",
+      "groupId": "g3"
+    }
+  ]
+}
