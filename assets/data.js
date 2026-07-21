@@ -1,5 +1,5 @@
 /* ============================================================
-   ApexJudge Academy — data layer
+   Abdelmajid CP — data layer
    All content lives in localStorage under STORAGE_KEY.
    On first load, SEED is copied in. Admin page edits it.
    Export/Import buttons on the admin page let the coach back
@@ -30,7 +30,7 @@ function tierFor(score) {
 const SEED = {
   coach: {
     name: 'Coach Name',
-    title: 'Head Coach, ApexJudge Academy',
+    title: 'Head Coach, Abdelmajid CP',
     bio: "I train students for ICPC, IOI and rated online judges — from first for-loop to red-handle. Replace this bio from the Admin page with your own background, achievements and coaching philosophy.",
     photo: '',
     email: 'coach@example.com',
@@ -117,7 +117,11 @@ async function fetchCloudData() {
 async function pushCloudData(data) {
   const res = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_CONFIG.BIN_ID}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': CLOUD_CONFIG.API_KEY },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': CLOUD_CONFIG.API_KEY,
+      'X-Bin-Versioning': 'false',
+    },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Cloud save failed: ' + res.status);
