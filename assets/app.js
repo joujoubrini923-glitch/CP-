@@ -1,5 +1,5 @@
 /* ============================================================
-   ApexJudge Academy — shared app helpers
+   Abdelmajid CP — shared app helpers
    ============================================================ */
 
 const NAV_LINKS = [
@@ -19,7 +19,7 @@ function renderNav(activeHref) {
   ).join('');
   nav.innerHTML = `
     <div class="wrap">
-      <a href="index.html" class="brand"><span class="prompt">&gt;</span> ApexJudge<span style="color:var(--dim)">.academy</span></a>
+      <a href="index.html" class="brand"><span class="prompt">&gt;</span> Abdelmajid<span style="color:var(--dim)"> CP</span></a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu">&#9776;</button>
       <div class="nav-links" id="nav-links">${linksHtml}</div>
     </div>`;
@@ -36,7 +36,7 @@ function renderFooter() {
     : 'Data stored locally in this browser. Use Admin → Backup to export.';
   f.innerHTML = `
     <div class="wrap">
-      <span>&copy; ${new Date().getFullYear()} ApexJudge Academy — built for the grind.</span>
+      <span>&copy; ${new Date().getFullYear()} Abdelmajid CP — built for the grind.</span>
       <span>${note}</span>
     </div>`;
 }
