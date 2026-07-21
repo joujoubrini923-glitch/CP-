@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Problems — Abdelmajid CP</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav class="site-nav" id="site-nav"></nav>
+
+<header class="page-header">
+  <div class="wrap">
+    <span class="breadcrumb"><a href="index.html">home</a> / problems</span>
+    <h1>Problem Archive</h1>
+    <p style="max-width:60ch;">Every problem assigned so far, tagged by difficulty, topic and group. Click a title to open the judge.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="filter-bar" id="diff-filter">
+      <button class="chip active" data-diff="all">All difficulties</button>
+      <button class="chip" data-diff="Easy">Easy</button>
+      <button class="chip" data-diff="Medium">Medium</button>
+      <button class="chip" data-diff="Hard">Hard</button>
+    </div>
+    <div class="filter-bar" id="group-filter"></div>
+    <div class="table-wrap">
+      <table class="board">
+        <thead>
+          <tr><th>Problem</th><th>Group</th><th>Topic</th><th>Difficulty</th><th></th></tr>
+        </thead>
+        <tbody id="problems-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/config.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(async function() {
+  renderNav('problems.html');
+  renderFooter();
+  const { data, cloudError } = await loadAppData();
+  if (cloudError) console.warn('Cloud sync issue:', cloudError);
+
+  let diffFilter = 'all';
+  let groupFilter = 'all';
+
+  function renderGroupChips() {
+    const chips = [{id:'all', name:'All groups'}, ...data.groups];
+    document.getElementById('group-filter').innerHTML = chips.map(g =>
+      `<button class="chip ${groupFilter===g.id ? 'active':''}" data-group="${g.id}">${g.name}</button>`
+    ).join('');
+    document.querySelectorAll('[data-group]').forEach(btn => {
+      btn.addEventListener('click', () => { groupFilter = btn.dataset.group; renderGroupChips(); renderTable(); });
+    });
+  }
+
+  function renderTable() {
+    const list = data.problems.filter(p =>
+      (diffFilter === 'all' || p.difficulty === diffFilter) &&
+      (groupFilter === 'all' || p.groupId === groupFilter)
+    );
+    document.getElementById('problems-body').innerHTML = list.map(p => `
+      <tr>
+        <td><a href="${p.link}" target="_blank" rel="noopener" style="font-weight:600;">${p.title}</a></td>
+        <td class="mono" style="color:var(--dim); font-size:13px;">${groupName(data, p.groupId)}</td>
+        <td class="mono" style="color:var(--dim); font-size:13px;">${p.category}</td>
+        <td><span class="diff diff-${p.difficulty}">${p.difficulty}</span></td>
+        <td style="text-align:right;"><a href="${p.link}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Open ↗</a></td>
+      </tr>
+    `).join('') || `<tr><td colspan="5"><div class="empty">No problems match these filters.</div></td></tr>`;
+  }
+
+  document.querySelectorAll('[data-diff]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      diffFilter = btn.dataset.diff;
+      document.querySelectorAll('[data-diff]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTable();
+    });
+  });
+
+  renderGroupChips();
+  renderTable();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Group Roster — Abdelmajid CP</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav class="site-nav" id="site-nav"></nav>
+
+<header class="page-header">
+  <div class="wrap">
+    <span class="breadcrumb"><a href="index.html">home</a> / <a href="groups.html">groups</a> / <span id="crumb-group">…</span></span>
+    <h1 id="group-title">Loading…</h1>
+    <p id="group-desc" style="max-width:60ch;"></p>
+    <div class="stat-row" id="group-stats"></div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">// roster</span>
+      <h2>Students</h2>
+    </div>
+    <div class="grid grid-3" id="roster"></div>
+  </div>
+</section>
+
+<section style="border-top:1px solid var(--line); background:var(--elevated);">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">// assigned reading</span>
+      <h2>Problems for this group</h2>
+    </div>
+    <div class="table-wrap" id="group-problems"></div>
+  </div>
+</section>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/config.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(async function() {
+  renderNav('groups.html');
+  renderFooter();
+  const { data, cloudError } = await loadAppData();
+  if (cloudError) console.warn('Cloud sync issue:', cloudError);
+  const params = new URLSearchParams(location.search);
+  const groupId = params.get('id');
+  const group = data.groups.find(g => g.id === groupId);
+
+  if (!group) {
+    document.getElementById('group-title').textContent = 'Group not found';
+    document.getElementById('crumb-group').textContent = 'not found';
+    document.getElementById('group-desc').textContent = 'This group may have been removed. Head back to the groups page.';
+  } else {
+    document.title = group.name + ' — Abdelmajid CP';
+    document.getElementById('crumb-group').textContent = group.name.toLowerCase();
+    document.getElementById('group-title').textContent = group.name;
+    document.getElementById('group-desc').textContent = group.description;
+
+    const members = data.students.filter(s => s.groupId === group.id).sort((a,b) => b.score - a.score);
+    const avg = members.length ? Math.round(members.reduce((a,s)=>a+s.score,0)/members.length) : 0;
+    const solved = members.reduce((a,s)=>a+(s.solved||0),0);
+
+    document.getElementById('group-stats').innerHTML = `
+      <div class="stat"><b>${members.length}</b><span>students</span></div>
+      <div class="stat"><b>${avg}</b><span>average score</span></div>
+      <div class="stat"><b>${solved}</b><span>problems solved (combined)</span></div>
+    `;
+
+    document.getElementById('roster').innerHTML = members.map(s => {
+      const tier = tierFor(s.score);
+      return `
+      <div class="student-card">
+        <div class="student-top">
+          ${avatarHtml(s.name, s.photo, s.score, 'student-avatar')}
+          <div>
+            <div class="student-name">${s.name}</div>
+            <div class="student-handle">@${s.handle || 'unset'}</div>
+            <span class="tier-pill" style="--tier-color:${tier.color}">${tier.name}</span>
+          </div>
+        </div>
+        <div class="student-stats">
+          <div><b style="color:${tier.color}">${s.score}</b><span>score</span></div>
+          <div><b>${s.solved ?? 0}</b><span>solved</span></div>
+        </div>
+      </div>`;
+    }).join('') || '<div class="empty">No students in this group yet — add some from Admin.</div>';
+
+    const gp = data.problems.filter(p => p.groupId === group.id);
+    document.getElementById('group-problems').innerHTML = gp.length ? `
+      <table class="board">
+        <thead><tr><th>Problem</th><th>Topic</th><th>Difficulty</th><th></th></tr></thead>
+        <tbody>
+          ${gp.map(p => `
+            <tr>
+              <td>${p.title}</td>
+              <td class="mono" style="color:var(--dim);">${p.category}</td>
+              <td><span class="diff diff-${p.difficulty}">${p.difficulty}</span></td>
+              <td style="text-align:right;"><a href="${p.link}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Open ↗</a></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>` : '<div class="empty">No problems assigned to this group yet.</div>';
+  }
+})();
+</script>
+</body>
+</html>

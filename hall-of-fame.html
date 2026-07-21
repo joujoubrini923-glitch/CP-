@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hall of Fame — Abdelmajid CP</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<nav class="site-nav" id="site-nav"></nav>
+
+<header class="page-header">
+  <div class="wrap">
+    <span class="breadcrumb"><a href="index.html">home</a> / hall of fame</span>
+    <h1>Hall of Fame</h1>
+    <p style="max-width:60ch;">Podium finishers from every contest we've run, most recent first.</p>
+  </div>
+</header>
+
+<section id="contests-container">
+  <div class="wrap" id="contests-wrap"></div>
+</section>
+
+<footer id="site-footer"></footer>
+
+<script src="assets/config.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+(async function() {
+  renderNav('hall-of-fame.html');
+  renderFooter();
+  const { data, cloudError } = await loadAppData();
+  if (cloudError) console.warn('Cloud sync issue:', cloudError);
+
+  const sorted = [...data.contests].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  document.getElementById('contests-wrap').innerHTML = sorted.length ? sorted.map(c => {
+    const podium = [...c.leaderboard].sort((a,b) => a.rank - b.rank).slice(0,3);
+    const rest = [...c.leaderboard].sort((a,b) => a.rank - b.rank).slice(3);
+
+    const podiumHtml = podium.map(entry => {
+      const st = studentById(data, entry.studentId);
+      if (!st) return '';
+      const tier = tierFor(st.score);
+      const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉';
+      return `
+        <div class="podium-card p${entry.rank}">
+          <div class="podium-rank">${medal} RANK ${entry.rank}</div>
+          ${avatarHtml(st.name, st.photo, st.score, 'podium-avatar')}
+          <div style="font-weight:600;">${st.name}</div>
+          <div class="mono" style="font-size:12px; color:var(--dim); margin-bottom:6px;">@${st.handle||'unset'}</div>
+          <div class="mono" style="font-weight:700; color:${tier.color};">${entry.score} pts</div>
+        </div>`;
+    }).join('');
+
+    const restHtml = rest.length ? `
+      <div class="table-wrap" style="margin-top:18px;">
+        <table class="board">
+          <tbody>
+          ${rest.map(entry => {
+            const st = studentById(data, entry.studentId);
+            if (!st) return '';
+            return `<tr>
+              <td class="rank-cell">${String(entry.rank).padStart(2,'0')}</td>
+              <td class="name-cell">${avatarHtml(st.name, st.photo, st.score, 'avatar')} ${st.name}</td>
+              <td class="score-cell">${entry.score}</td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>` : '';
+
+    return `
+      <div class="contest-block">
+        <h3>${c.name}</h3>
+        <span class="contest-date mono">${c.date}</span>
+        <div class="podium">${podiumHtml}</div>
+        ${restHtml}
+      </div>`;
+  }).join('') : '<div class="empty">No contests logged yet — add one from Admin.</div>';
+})();
+</script>
+</body>
+</html>
